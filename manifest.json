@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "PaperTradr",
+  "version": "1.0",
+  "description": "Paper trade cryptocurrencies to practice trading strategies",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "icons/icons16.png",
+    "48": "icons/icons48.png",
+    "128": "icons/icons128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://photon-sol.tinyastro.io/en/lp/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
