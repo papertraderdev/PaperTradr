@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+    <head>
+        <style>
+            body {
+                width: auto;
+                padding: 10px;
+            }
+            .table-container {
+                overflow-x: auto;
+                background: #2d2d2d;
+                border-radius: 4px;
+                margin: 10px 0;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                background: #2d2d2d;
+            }
+            th,
+            td {
+                border: 1px solid #404040;
+                padding: 8px 12px;
+                text-align: left;
+                white-space: nowrap;
+                color: #fff;
+            }
+            th {
+                background-color: #3d3d3d;
+            }
+            tr:nth-child(even) {
+                background-color: #363636;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Papertrdr</h1>
+        <h2>Trade History</h2>
+        <div class="header">
+            <label class="toggle-switch">
+                <input type="checkbox" id="uiToggle" />
+                Enabled Extension
+                <span class="slider"></span>
+            </label>
+            <button type="button" id="addSol">Add 1 SOL</button>
+            <button type="button" id="reset">Reset</button>
+            <button type="button" id="hidePort">Toggle Portfolio</button>
+        </div>
+
+        <div class="table-container">
+            <div id="trades"></div>
+        </div>
+        <script src="popup.js"></script>
+    </body>
+</html>
