@@ -1,97 +1,75 @@
-const positionMap = {};
-let currentPosition = {};
-
 let currentIndex = -1;
 let portfolioShown = true;
-
 let priceInterval = -1;
+let statsUIEnabled = false;
 
 let portfolio = {
   loaded: false,
-  solBalance: "1.000000000",
-  initialSOL: "1.000000000",
+  solBalance: 1.0,
+  initialSOL: 1.0,
   trades: [],
   positions: [],
 };
 
+function returnInvestmentTemplate(symbolData) {
+  const it = `
+  <div class="paper-trade-stats-container paper-trade p-show__bar__pf l-col-xxxl u-pl-0-xxxl u-mt-xs u-mt-0-xxxl js-show__portfolio" style="padding: 5px;">
+    <div class="l-row p-show__bar__row js-show__portfolio__avg l-row-gap--xs l-row-gap-lg--m u-flex-xl-nowrap">
+      <div class="l-col-auto p-show__bar__stat">
+        <div class="p-show__bar__label u-font-size-zh-xxs">Invested</div>
+        <div class="p-show__bar__value js-invested-eth paper-trade-invested" data-key="investedEth">0.000000000</div>
+      </div>
+      <div class="l-col-auto p-show__bar__stat">
+        <div class="p-show__bar__label u-font-size-zh-xxs u-d-flex u-align-items-center u-flex-gap-3xs">
+          <div class="c-icon c-icon--4xs c-icon--info c-bg-info-icon"
+            data-tippy-content="Does not include price impact and fees"></div>
+          Remaining
+        </div>
+        <div class="p-show__bar__value">
+          <span class="p-show__mpools__yellow js-remaininig-eth paper-trade-remaining" data-key="remainingEth"
+            data-tippy-content="This is the total amount of $SGL you hold across all pools. Make sure to select the right pool when selling.">0.000000000</span>
+          <span class="p-show__mpools__star">
+            *
+          </span>
+        </div>
+      </div>
+      <div class="l-col-auto p-show__bar__stat">
+        <div class="p-show__bar__label u-font-size-zh-xxs">Sold</div>
+        <div class="p-show__bar__value js-sold-eth paper-trade-sold" data-key="soldEth">0.000000000</div>
+      </div>
+      <div class="l-col-auto p-show__bar__stat">
+        <div class="p-show__bar__label u-d-flex u-align-items-center u-font-size-zh-xxs">
+          Change in P&amp;L
+        </div>
+        <div class="p-show__bar__value paper-trade-pnl" data-key="plHtml">
+          <span class="paper-tradr-pnl">
+            N/A
+          </span>
+        </div>
+        <div class="c-icon c-icon--mpools u-color-yellow c-icon--12 u-z-index-2 p-show__mpools__icon u-ml-3xs"
+          data-tippy-content="If you purchase tokens across multiple pools, it's advised that you sell into the pool with the highest pooled SOL/liquidity">
+        </div>
+      </div>
+    </div>`
+
+  return it;
+}
+
+const currentToken = {
+  symbol: '',
+  address: '',
+}
+
 function reset() {
   portfolio = {
-    uiPositions: portfolio.uiPositions || {
-      uiPositions: {
-        display: {
-          left: window.innerWidth - 420, // 420px width (400px content + 20px padding)
-          top: 200,
-        },
-        buttons: {
-          left: 20,
-          top: 100,
-        },
-      },
-    },
-    trades: [],
-    positions: [],
-    solBalance: "1.000000000",
-    initialSOL: "1.000000000",
-  };
+    ...getDefaultPortfolio(),
+    ...portfolio,
+  }
   currentIndex = -1;
   currentPosition = {};
   chrome.storage.local.set({ portfolio });
   injectTradeButtons();
 }
-
-chrome.storage.local.get(["portfolio", "uiEnabled"], (result) => {
-  // if (result.portfolio) {
-  portfolio = {
-    uiPositions: {
-      display: {
-        left: window.innerWidth - 420, // 420px width (400px content + 20px padding)
-        top: 200,
-      },
-      buttons: {
-        left: 20,
-        top: 100,
-      },
-    },
-    trades: [],
-    positions: [],
-    solBalance: "1.000000000",
-    initialSOL: "1.000000000",
-    ...result.portfolio,
-  };
-  portfolio.loaded = true;
-
-  // portfolio.initialSOL = result.portfolio?.initialSOL || "1.000000000";
-  // portfolio.solBalance = result.portfolio?.solBalance || "1.000000000";
-
-  if (!portfolio.uiPositions.buttons) {
-    portfolio.uiPositions.buttons = {
-      left: 20,
-      top: 100,
-    };
-  }
-
-  // Initialize positions if missing
-  // portfolio.uiPositions = portfolio.uiPositions || {
-  //   display: {
-  //     left: window.innerWidth - 420,
-  //     top: 200,
-  //   },
-  //   buttons: {
-  //     left: 20,
-  //     top: 100,
-  //   },
-  // };
-  // } else {
-  //   portfolio.positions = [];
-  //   portfolio.trades = [];
-  // }
-
-  if (result.uiEnabled === undefined || result.uiEnabled === false) {
-    disableUI();
-  } else {
-    injectTradeButtons();
-  }
-});
 
 function getRandomTime() {
   // Generate a random time between 250ms and 1500ms
@@ -100,71 +78,46 @@ function getRandomTime() {
   return Math.random() * (max - min) + min;
 }
 
-function injectTradeButtons() {
-  console.log("Injecting trade buttons...");
-  const priceSelectors = [
-    '[data-cable-val="priceQuote"]', // SOL price element
-    '[data-cable-val="priceUsd"]',
-    "[data-price]",
-    ".price",
-    '[data-bn-type="price"]',
-    ".PriceText",
-    ".market-price",
-  ];
+function showUIBalance() {
+  const originalBalance = document.querySelector('span.js-generated-balance');
+  if (!originalBalance) return;
 
-  const symbolSelectors = [".p-show__pair__cur", "[data-symbol]", ".symbol", ".market-symbol", "h1", ".exchange-title"];
+  // Hide the original balance
+  originalBalance.style.display = 'none';
 
-  let currentPrice = 0;
-  let symbol = "BTC";
-  let priceElement;
-  let symbolElement;
+  // Create duplicate balance element
+  const duplicateBalance = originalBalance.cloneNode(true);
+  duplicateBalance.style.display = 'inline';
+  duplicateBalance.textContent = portfolio.solBalance.toFixed(4);
+  duplicateBalance.classList.add('js-generated-balance-paper-trade');
+  // Insert duplicate after the original
+  originalBalance.parentNode.insertBefore(duplicateBalance, originalBalance.nextSibling);
+}
 
+function updateUIBalance() {
+  document.querySelector('span.js-generated-balance-paper-trade').textContent = portfolio.solBalance.toFixed(4);
+}
+
+function enableStatsUI() {
+  statsUIEnabled = true;
+  const symbolData = portfolio.positions[currentIndex];
+  const template = returnInvestmentTemplate(symbolData);
+
+  const firstChild = document.querySelector(".js-show__portfolio");
+  firstChild.insertAdjacentHTML('beforebegin', template);
+}
+
+function determineMigrated() {
   let isMigrating = document.querySelector(".p-show__migration") ? true : false;
   console.log(
     "Is Migratin: ",
     document.querySelector(".p-show__migration > div:first-child").classList.contains("is-hidden"),
   );
 
-  for (const selector of priceSelectors) {
-    priceElement = document.querySelector(selector);
-    if (priceElement) {
-      currentPrice = parseFloat(priceElement.dataset.value);
-      break;
-    }
-  }
-  let address = "";
+  return isMigrating;
+}
 
-  const test = document.querySelector(".p-show__bar__copy");
-  if (test) {
-    address = test.dataset.address || null;
-  }
-  // console.log(address);
-
-  for (const selector of symbolSelectors) {
-    symbolElement = document.querySelector(selector);
-    if (symbolElement) {
-      symbol = symbolElement.textContent.trim().split("/")[0].trim();
-      break;
-    }
-  }
-
-  for (const position of portfolio.positions) {
-    if (position.address === address) {
-      currentIndex = portfolio.positions.indexOf(position);
-      break;
-    }
-  }
-
-  if (currentIndex === -1) {
-    portfolio.positions.push({
-      address,
-      symbol,
-      invested: 0,
-      sold: 0,
-      tokenAmount: 0,
-    });
-    currentIndex = portfolio.positions.length - 1;
-  }
+function injectTradeButtons() {
   const buttonContainer = document.createElement("div");
   buttonContainer.className = "paper-trade-buttons paper-trade";
   buttonContainer.style.cssText = `position: fixed; width: 300px;
@@ -179,11 +132,11 @@ function injectTradeButtons() {
   buttonGrid.style.marginBottom = "2.5px";
 
   // Buy buttons (fixed SOL amounts)
-  const buyAmounts = [0.1, 0.2, 0.5, 1];
+  const buyAmounts = portfolio.buttonConfig.buy;
   buyAmounts.forEach((amount) => {
     const button = createTradeButton(`${amount} SOL`, "#2ecc71", async () =>
       setTimeout(() => {
-        executeTrade(address, currentPrice, "buy", amount);
+        executeTrade(currentToken.address, "buy", amount);
       }, getRandomTime()),
     );
     buttonGrid.appendChild(button);
@@ -192,12 +145,12 @@ function injectTradeButtons() {
   buttonContainer.appendChild(buttonGrid);
 
   // Sell buttons (percentage amounts)
-  const sellPercentages = [10, 25, 50, 100];
+  const sellPercentages = portfolio.buttonConfig.sell;
   const sellGrid = buttonGrid.cloneNode();
   sellPercentages.forEach((percent) => {
     const button = createTradeButton(`${percent}%`, "#e74c3c", async () =>
       setTimeout(() => {
-        executeTrade(address, currentPrice, "sell", percent);
+        executeTrade(currentToken.address, "sell", percent);
       }, getRandomTime()),
     );
     sellGrid.appendChild(button);
@@ -211,10 +164,10 @@ function injectTradeButtons() {
 
   document.body.appendChild(buttonContainer);
 
-  beginInterval();
+  // beginInterval();
   makeDraggable(buttonContainer);
-  updateDisplay();
 }
+
 
 function beginInterval() {
   priceInterval = setInterval(() => {
@@ -222,29 +175,36 @@ function beginInterval() {
   }, 1000);
 }
 
-function updateStatsContainer() {
+function displayIntegratedUI() {
+  const symbolData = portfolio.positions[currentIndex];
+  const template = returnInvestmentTemplate(symbolData);
+
+  const firstChild = document.querySelector(".js-show__portfolio");
+  firstChild.insertAdjacentHTML('beforebegin', template);
+}
+
+function displayTradingUI() {
+  // Add stats container
+  const symbolData = portfolio.positions[currentIndex];
   const currentPosition = parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
   const solPrice = getSOLPrice();
-  const symbolData = portfolio.positions[currentIndex];
-
-  const remainingProfit = currentPosition === 0 ? symbolData.sold : currentPosition * solPrice * 1 - 0.01;
-
-  // Add stats container
   const statsContainer = document.createElement("div");
   statsContainer.className = "paper-trade-stats-container paper-trade";
   statsContainer.style.cssText = `
-   display: flex;
-   justify-content: space-between;
-   margin: 8px 5px 0;
-   font-size: 0.85em;
-   color: white;
- `;
+     display: flex;
+     justify-content: space-between;
+     margin: 8px 5px 0;
+     font-size: 0.85em;
+     color: white;
+     width: 400px;
+   `;
 
   statsContainer.innerHTML = `
-   <div>Invested: <span class="initial-sol">${symbolData.invested.toFixed(9)}</span></div>
-   <div>Sold: <span class="remaining-sol">${symbolData.sold.toFixed(9)}</span></div>
-  <div>PnL: <span class="pnl">${(remainingProfit - symbolData.invested).toFixed(5)}</span></div>
- `;
+     <div>Invested: <span class="initial-sol paper-trade-invested">${symbolData.invested.toFixed(6)}</span></div>
+     <div>Remaining: <span class="remaining-sol paper-trade-remaining">${(currentPosition * solPrice * 0.99).toFixed(6)}</span></div>
+     <div>Sold: <span class="remaining-sol paper-trade-sold">${symbolData.sold.toFixed(6)}</span></div>
+     <div>PnL: <span class="pnl paper-trade-pnl">0.000000000</span></div>
+   `;
 
   const existingDisplay = document.querySelector(".paper-trade-stats-container");
   if (existingDisplay) {
@@ -253,6 +213,55 @@ function updateStatsContainer() {
 
   const buttonContainer = document.querySelector(".paper-trade-buttons");
   buttonContainer.appendChild(statsContainer);
+}
+
+function updateStandAloneStatsContainer() {
+  const currentPosition = parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
+  const solPrice = getSOLPrice();
+  const symbolData = portfolio.positions[currentIndex];
+
+  const remainingSolAmount = currentPosition * solPrice * 0.99;
+  const pnlSol = (((remainingSolAmount + symbolData.sold) - symbolData.invested) / symbolData.invested) * 100;
+  const r = ((remainingSolAmount + symbolData.sold) - symbolData.invested);
+
+  document.querySelector('.paper-trade-invested').textContent = `${symbolData.invested.toFixed(6)}`;
+  document.querySelector('.paper-trade-pnl').textContent = `${r.toFixed(4)}`;
+  const pnlElement = document.querySelector('.paper-trade-pnl');
+  pnlElement.className = 'paper-trade-pnl';
+  pnlElement.classList.add(r < 0 ? 'u-color-red' : 'u-color-green');
+
+  document.querySelector('.paper-trade-sold').textContent = `${symbolData.sold.toFixed(6)}`;
+  document.querySelector('.paper-trade-remaining').textContent = `${remainingSolAmount.toFixed(6)}`;
+
+}
+
+function updateIntegratedStatsContainer() {
+  // photon
+  const currentPosition = parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
+  const solPrice = getSOLPrice();
+  const symbolData = portfolio.positions[currentIndex];
+
+  const remainingSolAmount = currentPosition * solPrice * 0.99;
+  const pnlSol = (((remainingSolAmount + symbolData.sold) - symbolData.invested) / symbolData.invested) * 100;
+
+  // const template = returnInvestmentTemplate(symbolData);
+
+  // document.querySelector('.p-show__bar__pf').classList.remove('is-hidden');
+  // p-show__bar__pf
+  document.querySelector('.paper-trade-invested').textContent = `${symbolData.invested.toFixed(9)}`;
+  document.querySelector('.paper-trade-remaining').textContent = `${(currentPosition * solPrice * 0.99).toFixed(9)}`;
+  document.querySelector('.paper-trade-sold').textContent = `${symbolData.sold.toFixed(9)}`;
+
+  // const pnlSol = ((symbolData.sold + remainingSolAmount) - symbolData.invested) * 100;
+  const r = ((remainingSolAmount + symbolData.sold) - symbolData.invested);
+  // document.querySelector('[data-key-val="plHtml"]').textContent = `${r.toFixed(2)}% (${pnlSol.toFixed(9)})`;
+
+  const spanElement = document.querySelector('.paper-trade-pnl span');
+  spanElement.classList.remove('u-color-red', 'u-color-green');
+  spanElement.classList.add(r < 0 ? 'u-color-red' : 'u-color-green');
+  spanElement.textContent = `${pnlSol.toFixed(2)}% (${r.toFixed(9)})`;
+
+  // const remainingProfit = currentPosition === 0 ? symbolData.sold : currentPosition * solPrice * 1 - 0.01;
 }
 
 function makeDraggable(element) {
@@ -327,7 +336,19 @@ function getSOLPrice() {
   return priceElement ? parseFloat(priceElement.dataset.value) : 0;
 }
 
-function executeTrade(address, _, type, amountOrPercent) {
+function executeTrade(address, type, amountOrPercent) {
+  // Check if we need to create a new position
+  if (currentIndex === -1) {
+    portfolio.positions.push({
+      address,
+      symbol: currentToken.symbol,
+      invested: 0.0,
+      sold: 0.0,
+      tokenAmount: 0.0,
+    });
+    currentIndex = portfolio.positions.length - 1;
+  }
+
   const solPrice = getSOLPrice();
   const withoutPumpFee = amountOrPercent * 0.99;
   const coinAmount = withoutPumpFee / solPrice;
@@ -336,15 +357,16 @@ function executeTrade(address, _, type, amountOrPercent) {
   let tokenAmount = coinAmount;
 
   if (type === "buy") {
-    const currentSOL = parseFloat(portfolio.solBalance);
+    // const currentSOL = parseFloat(portfolio.solBalance);
 
-    if (amountOrPercent > currentSOL) {
+    if (amountOrPercent > portfolio.solBalance) {
       alert(`Insufficient SOL! ${currentSOL}`);
       return;
     }
 
     // Update SOL balance and positions
-    portfolio.solBalance = (currentSOL - amountOrPercent).toFixed(9);
+    // portfolio.solBalance = (currentSOL - amountOrPercent).toFixed(9);
+    portfolio.solBalance -= amountOrPercent;
 
     solAmount = amountOrPercent;
     portfolio.positions[currentIndex].invested += amountOrPercent;
@@ -365,7 +387,8 @@ function executeTrade(address, _, type, amountOrPercent) {
     solAmount = sellAmount * solPrice * 0.99;
     tokenAmount = sellAmount;
     // Update SOL balance and positions
-    portfolio.solBalance = (parseFloat(portfolio.solBalance) + solAmount).toFixed(9);
+    portfolio.solBalance += solAmount;
+    // portfolio.solBalance = (parseFloat(portfolio.solBalance) + solAmount).toFixed(9);
     portfolio.positions[currentIndex].tokenAmount -= sellAmount;
     portfolio.positions[currentIndex].sold += solAmount;
   }
@@ -379,22 +402,25 @@ function executeTrade(address, _, type, amountOrPercent) {
     timestamp: new Date().toISOString(),
   });
 
-  if (parseFloat(portfolio.positions[currentIndex].tokenAmount) === 0) {
+  if (portfolio.positions[currentIndex].tokenAmount === 0) {
     clearInterval(priceInterval);
     priceInterval = -1;
+  } else {
+    if (!statsUIEnabled) {
+      displayUI();
+    }
+    if (priceInterval === -1) {
+      beginInterval();
+    }
   }
 
-  if (priceInterval === -1) {
-    beginInterval();
-  }
-
-  // console.log(portfolio.positions);
   chrome.storage.local.set({ portfolio });
-  updateDisplay();
-  // updateStatsContainer(address);
+  enablePortfolioUI();
+  updateUIBalance();
+  updateStatsContainer();
 }
 
-function updateDisplay() {
+function enablePortfolioUI() {
   const displayElement = document.createElement("div");
   displayElement.className = "paper-trade-display paper-trade";
   displayElement.style.cssText = `
@@ -413,7 +439,7 @@ function updateDisplay() {
 
   let html = `
     <h5>Paper Trading Portfolio</h5>
-    <p>SOL Balance: ${portfolio.solBalance}</p>
+    <p>SOL Balance: ${portfolio.solBalance.toFixed(6)}</p>
     <h6>Positions:</h6>
   `;
 
@@ -441,11 +467,14 @@ function enableUI() {
   } else {
     injectTradeButtons();
   }
+  showUIBalance();
 }
 
 function disableUI() {
   const existingDisplay = document.querySelectorAll(".paper-trade");
   if (existingDisplay.length > 0) existingDisplay.forEach((display) => (display.style.visibility = "hidden"));
+
+  revertUIBalance();
 }
 
 function hidePort() {
@@ -455,6 +484,82 @@ function hidePort() {
   }
   portfolioShown = !portfolioShown;
 }
+function displayUI() {
+  if (portfolio.uiConfig.display === "integrated") {
+    displayIntegratedUI();
+  } else {
+    displayTradingUI();
+  }
+  updateStatsContainer();
+  statsUIEnabled = true;
+}
+
+function setupApp() {
+  const symbolSelectors = [".p-show__pair__cur", "[data-symbol]", ".symbol", ".market-symbol", "h1", ".exchange-title"];
+
+  let symbol = "";
+  let symbolElement;
+  const address = document.querySelector(".p-show__bar__copy")?.dataset.address;
+
+  for (const selector of symbolSelectors) {
+    symbolElement = document.querySelector(selector);
+    if (symbolElement) {
+      symbol = symbolElement.textContent.trim().split("/")[0].trim();
+      break;
+    }
+  }
+  currentToken.symbol = symbol;
+  currentToken.address = address;
+
+  injectTradeButtons();
+
+  // Find existing position for this address
+  for (const position of portfolio.positions) {
+    if (position.address === address) {
+      currentIndex = portfolio.positions.indexOf(position);
+      // If we have a position and it has tokens, setup the appropriate UI
+      if (position.invested > 0) {
+        // Start price updates if we have tokens
+        displayUI();
+        if (position.tokenAmount > 0) {
+          beginInterval();
+        }
+      }
+      break;
+    }
+  }
+
+  setTimeout(() => {
+    showUIBalance();
+  }, 1000);
+}
+
+function getDefaultPortfolio() {
+  return {
+    uiPositions: {
+      display: {
+        left: window.innerWidth - 420, // 420px width (400px content + 20px padding)
+        top: 200,
+      },
+      buttons: {
+        left: 20,
+        top: 100,
+      },
+    },
+    trades: [],
+    positions: [],
+    solBalance: 1.0,
+    initialSOL: 1.0,
+    buttonConfig: {
+      buy: [.1, .2, .5, 1.0],
+      sell: [10, 25, 50, 100]
+    },
+    uiConfig: {
+      display: "integrated",
+    },
+  };
+}
+
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "disableUI") {
@@ -464,15 +569,74 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === "addSol") {
     let currentSolBal = parseFloat(portfolio.solBalance);
     currentSolBal += 1.0;
-    portfolio.solBalance = currentSolBal.toFixed(9);
-    // portfolio.solBalance += "1.000000000";
-    injectTradeButtons();
+    portfolio.solBalance = currentSolBal;
+    updateUIBalance();
   } else if (message.action === "reset") {
     reset();
   } else if (message.action === "hidePort") {
     hidePort();
+  } else if (message.action === "updateStatsContainer") {
+    if (statsUIEnabled) {
+
+      if (message.integrated) {
+        portfolio.uiConfig.display = "integrated";
+      } else {
+        portfolio.uiConfig.display = "stand-alone";
+      }
+
+      const paperTradeContainer = document.querySelector(".paper-trade-stats-container");
+      if (paperTradeContainer) {
+        paperTradeContainer.remove();
+      }
+      if (portfolio.uiConfig.display === "integrated") {
+        displayIntegratedUI();
+      } else {
+        displayTradingUI();
+      }
+      updateStatsContainer();
+    }
   }
 });
 
-// Initialize
-// injectTradeButtons();
+chrome.storage.local.get(["portfolio", "uiEnabled"], (result) => {
+  portfolio = {
+    ...getDefaultPortfolio(),
+    ...result.portfolio,
+  }
+  portfolio.loaded = true;
+
+  if (!portfolio.uiPositions.buttons) {
+    portfolio.uiPositions.buttons = {
+      left: 20,
+      top: 100,
+    };
+  }
+
+  if (result.uiEnabled === undefined || result.uiEnabled === false) {
+    disableUI();
+  } else {
+    setupApp();
+  }
+});
+
+function updateStatsContainer() {
+  if (portfolio.uiConfig.display === "integrated") {
+    updateIntegratedStatsContainer();
+  } else {
+    updateStandAloneStatsContainer();
+  }
+}
+
+function revertUIBalance() {
+  const originalBalance = document.querySelector('span.js-generated-balance');
+  if (!originalBalance) return;
+
+  // Show the original balance
+  originalBalance.style.display = 'inline';
+
+  // Remove the duplicate if it exists (it would be the next sibling)
+  const duplicateBalance = originalBalance.nextSibling;
+  if (duplicateBalance && duplicateBalance.classList?.contains('js-generated-balance')) {
+    duplicateBalance.remove();
+  }
+}
