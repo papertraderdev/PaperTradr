@@ -50,25 +50,25 @@ function returnInvestmentTemplate(symbolData) {
           data-tippy-content="If you purchase tokens across multiple pools, it's advised that you sell into the pool with the highest pooled SOL/liquidity">
         </div>
       </div>
-    </div>`
+    </div>`;
 
   return it;
 }
 
 const currentToken = {
-  symbol: '',
-  address: '',
-}
+  symbol: "",
+  address: "",
+};
 
 function reset() {
   portfolio = {
     ...getDefaultPortfolio(),
-    ...portfolio,
-  }
+  };
   currentIndex = -1;
   currentPosition = {};
   chrome.storage.local.set({ portfolio });
   injectTradeButtons();
+  updateUIBalance();
 }
 
 function getRandomTime() {
@@ -79,23 +79,27 @@ function getRandomTime() {
 }
 
 function showUIBalance() {
-  const originalBalance = document.querySelector('span.js-generated-balance');
+  const originalBalance = document.querySelector("span.js-generated-balance");
   if (!originalBalance) return;
 
   // Hide the original balance
-  originalBalance.style.display = 'none';
+  originalBalance.style.display = "none";
 
   // Create duplicate balance element
   const duplicateBalance = originalBalance.cloneNode(true);
-  duplicateBalance.style.display = 'inline';
+  duplicateBalance.style.display = "inline";
   duplicateBalance.textContent = portfolio.solBalance.toFixed(4);
-  duplicateBalance.classList.add('js-generated-balance-paper-trade');
+  duplicateBalance.classList.add("js-generated-balance-paper-trade");
   // Insert duplicate after the original
-  originalBalance.parentNode.insertBefore(duplicateBalance, originalBalance.nextSibling);
+  originalBalance.parentNode.insertBefore(
+    duplicateBalance,
+    originalBalance.nextSibling,
+  );
 }
 
 function updateUIBalance() {
-  document.querySelector('span.js-generated-balance-paper-trade').textContent = portfolio.solBalance.toFixed(4);
+  document.querySelector("span.js-generated-balance-paper-trade").textContent =
+    portfolio.solBalance.toFixed(4);
 }
 
 function enableStatsUI() {
@@ -104,14 +108,16 @@ function enableStatsUI() {
   const template = returnInvestmentTemplate(symbolData);
 
   const firstChild = document.querySelector(".js-show__portfolio");
-  firstChild.insertAdjacentHTML('beforebegin', template);
+  firstChild.insertAdjacentHTML("beforebegin", template);
 }
 
 function determineMigrated() {
   let isMigrating = document.querySelector(".p-show__migration") ? true : false;
   console.log(
     "Is Migratin: ",
-    document.querySelector(".p-show__migration > div:first-child").classList.contains("is-hidden"),
+    document
+      .querySelector(".p-show__migration > div:first-child")
+      .classList.contains("is-hidden"),
   );
 
   return isMigrating;
@@ -168,7 +174,6 @@ function injectTradeButtons() {
   makeDraggable(buttonContainer);
 }
 
-
 function beginInterval() {
   priceInterval = setInterval(() => {
     updateStatsContainer();
@@ -180,13 +185,14 @@ function displayIntegratedUI() {
   const template = returnInvestmentTemplate(symbolData);
 
   const firstChild = document.querySelector(".js-show__portfolio");
-  firstChild.insertAdjacentHTML('beforebegin', template);
+  firstChild.insertAdjacentHTML("beforebegin", template);
 }
 
 function displayTradingUI() {
   // Add stats container
   const symbolData = portfolio.positions[currentIndex];
-  const currentPosition = parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
+  const currentPosition =
+    parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
   const solPrice = getSOLPrice();
   const statsContainer = document.createElement("div");
   statsContainer.className = "paper-trade-stats-container paper-trade";
@@ -206,7 +212,9 @@ function displayTradingUI() {
      <div>PnL: <span class="pnl paper-trade-pnl">0.000000000</span></div>
    `;
 
-  const existingDisplay = document.querySelector(".paper-trade-stats-container");
+  const existingDisplay = document.querySelector(
+    ".paper-trade-stats-container",
+  );
   if (existingDisplay) {
     existingDisplay.remove();
   }
@@ -216,49 +224,62 @@ function displayTradingUI() {
 }
 
 function updateStandAloneStatsContainer() {
-  const currentPosition = parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
+  const currentPosition =
+    parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
   const solPrice = getSOLPrice();
   const symbolData = portfolio.positions[currentIndex];
 
   const remainingSolAmount = currentPosition * solPrice * 0.99;
-  const pnlSol = (((remainingSolAmount + symbolData.sold) - symbolData.invested) / symbolData.invested) * 100;
-  const r = ((remainingSolAmount + symbolData.sold) - symbolData.invested);
+  const pnlSol =
+    ((remainingSolAmount + symbolData.sold - symbolData.invested) /
+      symbolData.invested) *
+    100;
+  const r = remainingSolAmount + symbolData.sold - symbolData.invested;
 
-  document.querySelector('.paper-trade-invested').textContent = `${symbolData.invested.toFixed(6)}`;
-  document.querySelector('.paper-trade-pnl').textContent = `${r.toFixed(4)}`;
-  const pnlElement = document.querySelector('.paper-trade-pnl');
-  pnlElement.className = 'paper-trade-pnl';
-  pnlElement.classList.add(r < 0 ? 'u-color-red' : 'u-color-green');
+  document.querySelector(".paper-trade-invested").textContent =
+    `${symbolData.invested.toFixed(6)}`;
+  document.querySelector(".paper-trade-pnl").textContent = `${r.toFixed(4)}`;
+  const pnlElement = document.querySelector(".paper-trade-pnl");
+  pnlElement.className = "paper-trade-pnl";
+  pnlElement.classList.add(r < 0 ? "u-color-red" : "u-color-green");
 
-  document.querySelector('.paper-trade-sold').textContent = `${symbolData.sold.toFixed(6)}`;
-  document.querySelector('.paper-trade-remaining').textContent = `${remainingSolAmount.toFixed(6)}`;
-
+  document.querySelector(".paper-trade-sold").textContent =
+    `${symbolData.sold.toFixed(6)}`;
+  document.querySelector(".paper-trade-remaining").textContent =
+    `${remainingSolAmount.toFixed(6)}`;
 }
 
 function updateIntegratedStatsContainer() {
   // photon
-  const currentPosition = parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
+  const currentPosition =
+    parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
   const solPrice = getSOLPrice();
   const symbolData = portfolio.positions[currentIndex];
 
   const remainingSolAmount = currentPosition * solPrice * 0.99;
-  const pnlSol = (((remainingSolAmount + symbolData.sold) - symbolData.invested) / symbolData.invested) * 100;
+  const pnlSol =
+    ((remainingSolAmount + symbolData.sold - symbolData.invested) /
+      symbolData.invested) *
+    100;
 
   // const template = returnInvestmentTemplate(symbolData);
 
   // document.querySelector('.p-show__bar__pf').classList.remove('is-hidden');
   // p-show__bar__pf
-  document.querySelector('.paper-trade-invested').textContent = `${symbolData.invested.toFixed(9)}`;
-  document.querySelector('.paper-trade-remaining').textContent = `${(currentPosition * solPrice * 0.99).toFixed(9)}`;
-  document.querySelector('.paper-trade-sold').textContent = `${symbolData.sold.toFixed(9)}`;
+  document.querySelector(".paper-trade-invested").textContent =
+    `${symbolData.invested.toFixed(9)}`;
+  document.querySelector(".paper-trade-remaining").textContent =
+    `${(currentPosition * solPrice * 0.99).toFixed(9)}`;
+  document.querySelector(".paper-trade-sold").textContent =
+    `${symbolData.sold.toFixed(9)}`;
 
   // const pnlSol = ((symbolData.sold + remainingSolAmount) - symbolData.invested) * 100;
-  const r = ((remainingSolAmount + symbolData.sold) - symbolData.invested);
+  const r = remainingSolAmount + symbolData.sold - symbolData.invested;
   // document.querySelector('[data-key-val="plHtml"]').textContent = `${r.toFixed(2)}% (${pnlSol.toFixed(9)})`;
 
-  const spanElement = document.querySelector('.paper-trade-pnl span');
-  spanElement.classList.remove('u-color-red', 'u-color-green');
-  spanElement.classList.add(r < 0 ? 'u-color-red' : 'u-color-green');
+  const spanElement = document.querySelector(".paper-trade-pnl span");
+  spanElement.classList.remove("u-color-red", "u-color-green");
+  spanElement.classList.add(r < 0 ? "u-color-red" : "u-color-green");
   spanElement.textContent = `${pnlSol.toFixed(2)}% (${r.toFixed(9)})`;
 
   // const remainingProfit = currentPosition === 0 ? symbolData.sold : currentPosition * solPrice * 1 - 0.01;
@@ -372,7 +393,8 @@ function executeTrade(address, type, amountOrPercent) {
     portfolio.positions[currentIndex].invested += amountOrPercent;
     portfolio.positions[currentIndex].tokenAmount += tokenAmount;
   } else {
-    const currentPosition = parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
+    const currentPosition =
+      parseFloat(portfolio.positions[currentIndex].tokenAmount) || 0;
 
     if (currentPosition === 0) {
       return;
@@ -463,7 +485,9 @@ function enablePortfolioUI() {
 function enableUI() {
   const existingDisplay = document.querySelectorAll(".paper-trade");
   if (existingDisplay.length > 0) {
-    existingDisplay.forEach((display) => (display.style.visibility = "visible"));
+    existingDisplay.forEach(
+      (display) => (display.style.visibility = "visible"),
+    );
   } else {
     injectTradeButtons();
   }
@@ -472,7 +496,8 @@ function enableUI() {
 
 function disableUI() {
   const existingDisplay = document.querySelectorAll(".paper-trade");
-  if (existingDisplay.length > 0) existingDisplay.forEach((display) => (display.style.visibility = "hidden"));
+  if (existingDisplay.length > 0)
+    existingDisplay.forEach((display) => (display.style.visibility = "hidden"));
 
   revertUIBalance();
 }
@@ -480,7 +505,9 @@ function disableUI() {
 function hidePort() {
   const existingDisplay = document.querySelectorAll(".paper-trade-display");
   if (existingDisplay.length > 0) {
-    existingDisplay.forEach((display) => (display.style.display = portfolioShown ? "none" : ""));
+    existingDisplay.forEach(
+      (display) => (display.style.display = portfolioShown ? "none" : ""),
+    );
   }
   portfolioShown = !portfolioShown;
 }
@@ -495,7 +522,14 @@ function displayUI() {
 }
 
 function setupApp() {
-  const symbolSelectors = [".p-show__pair__cur", "[data-symbol]", ".symbol", ".market-symbol", "h1", ".exchange-title"];
+  const symbolSelectors = [
+    ".p-show__pair__cur",
+    "[data-symbol]",
+    ".symbol",
+    ".market-symbol",
+    "h1",
+    ".exchange-title",
+  ];
 
   let symbol = "";
   let symbolElement;
@@ -551,15 +585,14 @@ function getDefaultPortfolio() {
     solBalance: 1.0,
     initialSOL: 1.0,
     buttonConfig: {
-      buy: [.1, .2, .5, 1.0],
-      sell: [10, 25, 50, 100]
+      buy: [0.1, 0.2, 0.5, 1.0],
+      sell: [10, 25, 50, 100],
     },
     uiConfig: {
       display: "integrated",
     },
   };
 }
-
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "disableUI") {
@@ -577,14 +610,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     hidePort();
   } else if (message.action === "updateStatsContainer") {
     if (statsUIEnabled) {
-
       if (message.integrated) {
         portfolio.uiConfig.display = "integrated";
       } else {
         portfolio.uiConfig.display = "stand-alone";
       }
 
-      const paperTradeContainer = document.querySelector(".paper-trade-stats-container");
+      const paperTradeContainer = document.querySelector(
+        ".paper-trade-stats-container",
+      );
       if (paperTradeContainer) {
         paperTradeContainer.remove();
       }
@@ -602,7 +636,7 @@ chrome.storage.local.get(["portfolio", "uiEnabled"], (result) => {
   portfolio = {
     ...getDefaultPortfolio(),
     ...result.portfolio,
-  }
+  };
   portfolio.loaded = true;
 
   if (!portfolio.uiPositions.buttons) {
@@ -628,15 +662,18 @@ function updateStatsContainer() {
 }
 
 function revertUIBalance() {
-  const originalBalance = document.querySelector('span.js-generated-balance');
+  const originalBalance = document.querySelector("span.js-generated-balance");
   if (!originalBalance) return;
 
   // Show the original balance
-  originalBalance.style.display = 'inline';
+  originalBalance.style.display = "inline";
 
   // Remove the duplicate if it exists (it would be the next sibling)
   const duplicateBalance = originalBalance.nextSibling;
-  if (duplicateBalance && duplicateBalance.classList?.contains('js-generated-balance')) {
+  if (
+    duplicateBalance &&
+    duplicateBalance.classList?.contains("js-generated-balance")
+  ) {
     duplicateBalance.remove();
   }
 }
