@@ -381,7 +381,7 @@ function executeTrade(address, type, amountOrPercent) {
     // const currentSOL = parseFloat(portfolio.solBalance);
 
     if (amountOrPercent > portfolio.solBalance) {
-      alert(`Insufficient SOL! ${currentSOL}`);
+      alert(`Insufficient SOL! ${portfolio.solBalance.toFixed(9)}`);
       return;
     }
 
