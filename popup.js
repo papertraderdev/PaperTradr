@@ -8,8 +8,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   chrome.storage.local.get(["portfolio", "uiEnabled"], (result) => {
     // Set initial toggle state
-    uiToggle.checked = result.uiEnabled;
-    statsToggle.checked = result.portfolio.uiConfig.display === "integrated";
+    uiToggle.checked = result.uiEnabled || false;
+    statsToggle.checked = result.portfolio?.uiConfig?.display === "integrated";
     portfolio = result.portfolio;
 
     const trades = portfolio?.trades || [];
