@@ -2,6 +2,8 @@
 
 **PaperTradr** is a simulation tool designed to make meme coin trading fun, educational, and risk-free! It currently supports trading on Photon (phase 1) and will expand to BullX and GmGn (phase 2). Let's take a look at its features:
 
+CA:B8qWE6fdTEyM5RvFykmjPoVtmP2af1mffKp6Tu3dpump
+
 ## 🚀 Phase 1: Photon Support
 - ✅ **Buy and Sell Tracking**: Record every trade and keep track of your positions.
 - 📊 **Profit and Loss Tracking**: See how you're performing at a glance.
